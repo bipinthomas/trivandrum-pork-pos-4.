@@ -7,7 +7,7 @@ on:
       - apk-build-v1.1.0
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -63,6 +63,32 @@ jobs:
           test -f TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/InvoiceImageGenerator.kt
           grep -q 'import androidx.compose.runtime.saveable.rememberSaveable' "$APP"
           ! grep -q 'import androidx.compose.foundation.layout.weight' "$APP"
+
+      - name: Save source inspection for review
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt')
+          lines = p.read_text().splitlines()
+          needles = ('whatsapp', 'ACTION_SEND', 'EXTRA_STREAM', 'createChooser', 'sendBill', 'shareBill', 'jid', 'InvoiceImageGenerator')
+          hits = [i for i, line in enumerate(lines) if any(n.lower() in line.lower() for n in needles)]
+          out = ['FILE: ' + str(p), 'TOTAL LINES: ' + str(len(lines)), 'MATCHES: ' + str(hits)]
+          shown = set()
+          for i in hits:
+              out.append(f'===== CONTEXT AROUND LINE {i+1} =====')
+              for j in range(max(0, i-24), min(len(lines), i+36)):
+                  if j not in shown:
+                      out.append(f'{j+1}: {lines[j]}')
+                      shown.add(j)
+          Path('.github/android-share-inspection.txt').write_text('\\n'.join(out))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/android-share-inspection.txt
+          git commit -m 'chore: capture Android WhatsApp share source [skip ci]'
+          git push
 
       - name: Inspect WhatsApp sharing implementation
         shell: bash
