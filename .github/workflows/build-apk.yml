@@ -75,6 +75,13 @@ jobs:
           needles = ('whatsapp', 'ACTION_SEND', 'EXTRA_STREAM', 'createChooser', 'sendBill', 'shareBill', 'jid', 'InvoiceImageGenerator')
           hits = [i for i, line in enumerate(lines) if any(n.lower() in line.lower() for n in needles)]
           out = ['FILE: ' + str(p), 'TOTAL LINES: ' + str(len(lines)), 'MATCHES: ' + str(hits)]
+          out.append('===== MAIN ACTIVITY HEADER =====')
+          out.extend(f'{j+1}: {lines[j]}' for j in range(min(170, len(lines))))
+          out.append('===== BILL MODEL DECLARATIONS =====')
+          for source in Path('TrivandrumPorkPOS-Android/app/src/main/java').rglob('*.kt'):
+              for n, line in enumerate(source.read_text().splitlines(), 1):
+                  if any(term in line.lower() for term in ('data class bill', 'class bill', 'customerphone', 'customer mobile', 'mobile:', 'phone:')):
+                      out.append(f'{source}:{n}: {line}')
           shown = set()
           for i in hits:
               out.append(f'===== CONTEXT AROUND LINE {i+1} =====')
