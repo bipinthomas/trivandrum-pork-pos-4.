@@ -1,20 +1,20 @@
-
-name: Build Trivandrum Pork POS APK
+name: Build Trivandrum Pork POS v1.1.0 APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - apk-build-v1.1.0
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
+      - name: Checkout build branch
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -23,39 +23,57 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
+      - name: Install Android SDK packages
+        shell: bash
         run: |
-          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          echo "Android SDK: $SDK_ROOT"
-
-          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" \
-            -type f -name sdkmanager | sort -V | tail -n 1)
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "Android SDK manager not found"
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [[ -z "$SDK_ROOT" ]]; then
+            echo "Android SDK location was not provided by the runner."
             exit 1
           fi
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          if [[ -z "$SDKMANAGER" ]]; then
+            echo "Android sdkmanager was not found."
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
-          echo "Using: $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses || true
-
-          "$SDKMANAGER" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-      - name: Set up Gradle
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      - name: Restore refined Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/android-source/source-*.b64 > /tmp/trivandrum-pork-pos.tar.gz.b64
+          base64 --decode /tmp/trivandrum-pork-pos.tar.gz.b64 > /tmp/trivandrum-pork-pos.tar.gz
+          gzip -t /tmp/trivandrum-pork-pos.tar.gz
+          tar -xzf /tmp/trivandrum-pork-pos.tar.gz -C "$GITHUB_WORKSPACE"
+          test -f TrivandrumPorkPOS-Android/settings.gradle.kts
+          test -f TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt
+          test -f TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/InvoiceImageGenerator.kt
+
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon --stacktrace clean assembleDebug
 
-      - name: Upload APK
+      - name: Verify APK output
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          file "$APK"
+          sha256sum "$APK"
+
+      - name: Upload refined APK
         uses: actions/upload-artifact@v4
         with:
-          name: TrivandrumPorkPOS-debug-apk
+          name: TrivandrumPorkPOS-v1.1.0-debug-apk
           path: TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
