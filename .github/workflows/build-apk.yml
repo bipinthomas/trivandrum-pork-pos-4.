@@ -53,9 +53,13 @@ jobs:
           base64 --decode /tmp/trivandrum-pork-pos.tar.gz.b64 > /tmp/trivandrum-pork-pos.tar.gz
           gzip -t /tmp/trivandrum-pork-pos.tar.gz
           tar -xzf /tmp/trivandrum-pork-pos.tar.gz -C "$GITHUB_WORKSPACE"
+          APP="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt"
+          # Fix the Compose saveable-state import identified by the first CI compile.
+          sed -i 's/import androidx.compose.runtime.rememberSaveable/import androidx.compose.runtime.saveable.rememberSaveable/' "$APP"
           test -f TrivandrumPorkPOS-Android/settings.gradle.kts
-          test -f TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt
+          test -f "$APP"
           test -f TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/InvoiceImageGenerator.kt
+          grep -q 'import androidx.compose.runtime.saveable.rememberSaveable' "$APP"
 
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
