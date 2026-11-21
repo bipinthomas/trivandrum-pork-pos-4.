@@ -1,10 +1,10 @@
-name: Build Trivandrum Pork POS v1.1.0 APK
+name: Build Trivandrum Pork POS v1.2.0 APK
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - apk-build-v1.1.0
+      - apk-build-v1.2.0
 
 permissions:
   contents: write
@@ -64,60 +64,69 @@ jobs:
           grep -q 'import androidx.compose.runtime.saveable.rememberSaveable' "$APP"
           ! grep -q 'import androidx.compose.foundation.layout.weight' "$APP"
 
-      - name: Save source inspection for review
+      - name: Fix direct WhatsApp recipient targeting
         shell: bash
         run: |
           set -euo pipefail
+          APP="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt"
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt')
-          lines = p.read_text().splitlines()
-          needles = ('whatsapp', 'ACTION_SEND', 'EXTRA_STREAM', 'createChooser', 'sendBill', 'shareBill', 'jid', 'InvoiceImageGenerator')
-          hits = [i for i, line in enumerate(lines) if any(n.lower() in line.lower() for n in needles)]
-          out = ['FILE: ' + str(p), 'TOTAL LINES: ' + str(len(lines)), 'MATCHES: ' + str(hits)]
-          out.append('===== MAIN ACTIVITY HEADER =====')
-          out.extend(f'{j+1}: {lines[j]}' for j in range(min(170, len(lines))))
-          out.append('===== BILL MODEL DECLARATIONS =====')
-          for source in Path('TrivandrumPorkPOS-Android/app/src/main/java').rglob('*.kt'):
-              for n, line in enumerate(source.read_text().splitlines(), 1):
-                  if any(term in line.lower() for term in ('data class bill', 'class bill', 'customerphone', 'customer mobile', 'mobile:', 'phone:')):
-                      out.append(f'{source}:{n}: {line}')
-          shown = set()
-          for i in hits:
-              out.append(f'===== CONTEXT AROUND LINE {i+1} =====')
-              for j in range(max(0, i-24), min(len(lines), i+36)):
-                  if j not in shown:
-                      out.append(f'{j+1}: {lines[j]}')
-                      shown.add(j)
-          Path('.github/android-share-inspection.txt').write_text('\\n'.join(out))
-          PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/android-share-inspection.txt
-          git commit -m 'chore: capture Android WhatsApp share source [skip ci]'
-          git push
+          p = Path("TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt")
+          source = p.read_text()
+          start_marker = "private fun shareInvoiceImage("
+          end_marker = "\nprivate fun isPackageInstalled"
+          start = source.find(start_marker)
+          end = source.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit("Could not locate the invoice-sharing helper; refusing to create an unverified build.")
+          replacement = """private fun shareInvoiceImage(context: Context, imageFile: File, bill: Bill, settings: BusinessSettings) {
+              // WhatsApp's JID extra targets a phone number directly, including numbers not saved in Contacts.
+              val enteredNumber = bill.mobile.filter { it.isDigit() }
+              val recipientNumber = when {
+                  enteredNumber.length == 10 -> "91$enteredNumber"
+                  enteredNumber.length == 11 && enteredNumber.startsWith("0") -> "91${enteredNumber.drop(1)}"
+                  enteredNumber.length in 11..15 -> enteredNumber
+                  else -> ""
+              }
+              if (recipientNumber.isBlank()) {
+                  Toast.makeText(context, "Customer mobile number is invalid. Update the bill and try again.", Toast.LENGTH_LONG).show()
+                  return
+              }
 
-      - name: Inspect WhatsApp sharing implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo '--- WhatsApp/share references in Android source ---'
-          grep -RniE 'whatsapp|ACTION_SEND|EXTRA_STREAM|createChooser|sendBill|shareBill|share.*image|jid' TrivandrumPorkPOS-Android/app/src/main/java || true
-          echo '--- MainActivity.kt relevant context ---'
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt')
-          lines = p.read_text().splitlines()
-          needles = ('whatsapp', 'ACTION_SEND', 'EXTRA_STREAM', 'createChooser', 'sendBill', 'shareBill', 'jid')
-          hits = [i for i, line in enumerate(lines) if any(n.lower() in line.lower() for n in needles)]
-          shown = set()
-          for i in hits:
-              for j in range(max(0, i-10), min(len(lines), i+16)):
-                  if j not in shown:
-                      print(f'{j+1}: {lines[j]}')
-                      shown.add(j)
-              print('---')
+              val uri: Uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
+              val intent = Intent(Intent.ACTION_SEND).apply {
+                  type = "image/png"
+                  putExtra(Intent.EXTRA_STREAM, uri)
+                  putExtra(Intent.EXTRA_TEXT, "Thank you for ordering from ${settings.businessName}!\\nBill: ${bill.billNo}\\nTotal: ${rupees(bill.total)}")
+                  putExtra("jid", "${recipientNumber}@s.whatsapp.net")
+                  clipData = ClipData.newUri(context.contentResolver, "${bill.billNo} invoice", uri)
+                  addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+              }
+              val whatsappBusiness = "com.whatsapp.w4b"
+              val whatsapp = "com.whatsapp"
+              val installedPackage = when {
+                  isPackageInstalled(context, whatsappBusiness) -> whatsappBusiness
+                  isPackageInstalled(context, whatsapp) -> whatsapp
+                  else -> null
+              }
+
+              if (installedPackage != null) {
+                  // Keep the image attached and open the exact customer's chat, even when the number is unsaved.
+                  intent.setPackage(installedPackage)
+                  context.startActivity(intent)
+              } else {
+                  context.startActivity(Intent.createChooser(intent, "Share invoice image"))
+              }
+          }"""
+          source = source[:start] + replacement + source[end:]
+          old_help = "The app generates an invoice PNG and opens WhatsApp Business when it is installed. Choose the customer's chat in WhatsApp to send the image."
+          new_help = "The app generates an invoice PNG and opens the customer's WhatsApp chat directly using the mobile number on the bill. Review the invoice and press Send."
+          if old_help in source:
+              source = source.replace(old_help, new_help, 1)
+          p.write_text(source)
           PY
+          grep -q 'putExtra("jid"' "$APP"
+          grep -q 'val recipientNumber' "$APP"
 
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
@@ -135,7 +144,28 @@ jobs:
       - name: Upload refined APK
         uses: actions/upload-artifact@v4
         with:
-          name: TrivandrumPorkPOS-v1.1.0-debug-apk
+          name: TrivandrumPorkPOS-v1.2.0-debug-apk
           path: TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Record build details
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .github/build-info
+          APK="TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk"
+          {
+            echo "version=1.2.0"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_number=$GITHUB_RUN_NUMBER"
+            echo "commit=$GITHUB_SHA"
+            echo "artifact=TrivandrumPorkPOS-v1.2.0-debug-apk"
+            echo "sha256=$(sha256sum "$APK" | awk '{print $1}')"
+          } > .github/build-info/latest-apk.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/build-info/latest-apk.txt
+          git commit -m "chore: record v1.2.0 APK build metadata [skip ci]"
+          git push
