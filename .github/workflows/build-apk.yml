@@ -54,12 +54,15 @@ jobs:
           gzip -t /tmp/trivandrum-pork-pos.tar.gz
           tar -xzf /tmp/trivandrum-pork-pos.tar.gz -C "$GITHUB_WORKSPACE"
           APP="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt"
-          # Fix the Compose saveable-state import identified by the first CI compile.
-          sed -i 's/import androidx.compose.runtime.rememberSaveable/import androidx.compose.runtime.saveable.rememberSaveable/' "$APP"
+          # Compose saveable state lives in the saveable package.
+          sed -i 's|import androidx.compose.runtime.rememberSaveable|import androidx.compose.runtime.saveable.rememberSaveable|' "$APP"
+          # Modifier.weight is a RowScope/ColumnScope member; importing it directly is invalid.
+          sed -i '/import androidx.compose.foundation.layout.weight/d' "$APP"
           test -f TrivandrumPorkPOS-Android/settings.gradle.kts
           test -f "$APP"
           test -f TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/InvoiceImageGenerator.kt
           grep -q 'import androidx.compose.runtime.saveable.rememberSaveable' "$APP"
+          ! grep -q 'import androidx.compose.foundation.layout.weight' "$APP"
 
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
