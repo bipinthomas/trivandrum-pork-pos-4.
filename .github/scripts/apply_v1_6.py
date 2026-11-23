@@ -299,10 +299,9 @@ exporter = once(exporter,
     "val widths = listOf(18, 24, 24, 18, 18, 28, 10, 15, 12, 17, 18, 18, 18)",
     "val widths = listOf(18, 24, 24, 18, 18, 28, 10, 15, 12, 17, 18, 18, 18, 20, 16)",
     "Excel loyalty widths")
-exporter = once(exporter,
-    'append("<autoFilter ref=\\\\"A13:M" + rows.size + "\\\\"/>")',
-    'append("<autoFilter ref=\\\\"A13:O" + rows.size + "\\\\"/>")',
-    "Excel filter extent")
+if exporter.count("A13:M") != 1:
+    raise SystemExit("Excel filter range: expected one A13:M reference.")
+exporter = exporter.replace("A13:M", "A13:O", 1)
 EXPORTER.write_text(exporter)
 
 
