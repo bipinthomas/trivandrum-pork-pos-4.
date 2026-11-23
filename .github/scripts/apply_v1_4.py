@@ -297,7 +297,7 @@ invoice = once(
                 canvas,
                 "FSSAI Lic. No.: ${settings.fssaiNumber}",
                 540f,
-                thankY + 105f,
+                thankY + 55f,
                 920f,
                 26f,
                 muted,
