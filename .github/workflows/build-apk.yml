@@ -80,32 +80,6 @@ jobs:
           git commit -m "chore: record v1.3.0 workflow run [skip ci]"
           git push
 
-      - name: Snapshot restored Kotlin source for feature updates
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          root = Path("TrivandrumPorkPOS-Android/app/src/main/java")
-          out = Path(".github/expanded-source")
-          out.mkdir(parents=True, exist_ok=True)
-          for source in sorted(root.rglob("*.kt")):
-              relative = source.relative_to(root)
-              destination = out / (str(relative).replace("/", "__"))
-              destination.write_text(source.read_text())
-          gradle = Path("TrivandrumPorkPOS-Android/app/build.gradle.kts")
-          if gradle.exists():
-              (out / "app-build.gradle.kts").write_text(gradle.read_text())
-          print("Captured Kotlin files:")
-          for p in sorted(out.iterdir()):
-              print(f"{p}: {p.stat().st_size} bytes")
-          PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/expanded-source
-          git commit -m "chore: snapshot restored Android source for POS feature work [skip ci]"
-          git push
-
       - name: Fix direct WhatsApp recipient targeting
         shell: bash
         run: |
