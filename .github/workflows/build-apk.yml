@@ -1,10 +1,10 @@
-name: Build Trivandrum Pork POS v1.5.0 APK
+name: Build Trivandrum Pork POS v1.6.0 APK
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - apk-build-v1.5.0-backup
+      - apk-build-v1.6.0-loyalty
 
 permissions:
   contents: write
@@ -166,6 +166,23 @@ jobs:
           grep -q 'PosBackupManager.createBackup' "$MAIN"
           grep -q 'versionName = "1.5.0"' TrivandrumPorkPOS-Android/app/build.gradle.kts
 
+      - name: Apply v1.6.0 bill branding and customer loyalty
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/apply_v1_6.py
+          DB="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/data/PosDatabase.kt"
+          MAIN="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt"
+          INVOICE="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/InvoiceImageGenerator.kt"
+          EXPORTER="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/SalesExcelExporter.kt"
+          test -s TrivandrumPorkPOS-Android/app/src/main/res/drawable-nodpi/trivandrum_pork_header.webp
+          grep -q 'loyalty_customers' "$DB"
+          grep -q 'redeemLoyaltyPoints' "$DB"
+          grep -q 'LoyaltyScreen' "$MAIN"
+          grep -q 'Special discount applied, you saved' "$INVOICE"
+          grep -q 'Loyalty Points Earned' "$EXPORTER"
+          grep -q 'versionName = "1.6.0"' TrivandrumPorkPOS-Android/app/build.gradle.kts
+
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
         run: gradle --no-daemon --stacktrace clean assembleDebug
@@ -182,7 +199,7 @@ jobs:
       - name: Upload v1.5.0 APK
         uses: actions/upload-artifact@v4
         with:
-          name: TrivandrumPorkPOS-v1.5.0-backup-debug-apk
+          name: TrivandrumPorkPOS-v1.6.0-loyalty-debug-apk
           path: TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
