@@ -135,7 +135,7 @@ private fun SettingsScreen(settings: BusinessSettings, onSave: (BusinessSettings
 }
 
 """
-main = between(main, "@Composable\nprivate fun SettingsScreen(", "\nprivate fun shareInvoiceImage", settings_screen, "FSSAI and kitchen settings screen")
+main = between(main, "@Composable\nprivate fun SettingsScreen(", "\n@Composable\nprivate fun EmptyState", settings_screen, "FSSAI and kitchen settings screen")
 
 main = once(
     main,
