@@ -325,10 +325,8 @@ main = once(main,
     "refresh loyalty state")
 
 main = once(main,
-    '''                                    customerMobile = ""
-                                    shareBill(newBill)''',
-    '''                                    customerMobile = ""
-                                    if (newBill.loyaltyPointsBalance >= 200) {
+    "shareBill(newBill)",
+    """if (newBill.loyaltyPointsBalance >= 200) {
                                         Toast.makeText(
                                             context,
                                             newBill.customerName + " has reached " + newBill.loyaltyPointsBalance +
@@ -336,7 +334,7 @@ main = once(main,
                                             Toast.LENGTH_LONG
                                         ).show()
                                     }
-                                    shareBill(newBill)''',
+                                    shareBill(newBill)""",
     "notify cashier at 200 points")
 
 nav_start = main.find("private fun MainNavigation(")
