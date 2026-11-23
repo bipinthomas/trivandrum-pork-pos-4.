@@ -170,6 +170,16 @@ jobs:
           grep -q 'putExtra("jid"' "$APP"
           grep -q 'val recipientNumber' "$APP"
 
+      - name: Apply category, discounts, reports and invoice updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/apply_v1_3.py
+          grep -q 'category_discounts' TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/data/PosDatabase.kt
+          grep -q 'SalesExcelExporter.generate' TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt
+          grep -q 'putExtra("jid"' TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt
+          grep -q 'versionName = "1.3.0"' TrivandrumPorkPOS-Android/app/build.gradle.kts
+
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
         run: gradle --no-daemon --stacktrace clean assembleDebug
@@ -199,7 +209,7 @@ jobs:
           mkdir -p .github/build-info
           APK="TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk"
           {
-            echo "version=1.2.0"
+            echo "version=1.3.0"
             echo "run_id=$GITHUB_RUN_ID"
             echo "run_number=$GITHUB_RUN_NUMBER"
             echo "commit=$GITHUB_SHA"
