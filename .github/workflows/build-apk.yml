@@ -1,4 +1,4 @@
-name: Build Trivandrum Pork POS v1.6.0 APK
+name: Build Trivandrum Pork POS v1.7.0 APK
 
 on:
   workflow_dispatch:
@@ -183,6 +183,29 @@ jobs:
           grep -q 'Loyalty Points Earned' "$EXPORTER"
           grep -q 'versionName = "1.6.0"' TrivandrumPorkPOS-Android/app/build.gradle.kts
 
+
+      - name: Apply v1.7.0 kitchen sharing and logo fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/apply_v1_7.py
+          MAIN="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt"
+          DB="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/data/PosDatabase.kt"
+          INVOICE="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/InvoiceImageGenerator.kt"
+          KITCHEN="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/KitchenOrderImageGenerator.kt"
+          MANIFEST="TrivandrumPorkPOS-Android/app/src/main/AndroidManifest.xml"
+          test -s TrivandrumPorkPOS-Android/app/src/main/res/drawable-nodpi/trivandrum_pork_logo.webp
+          grep -q 'Kitchen WhatsApp Number' "$MAIN"
+          grep -q 'kitchenWhatsAppNumber' "$DB"
+          grep -q 'R.drawable.trivandrum_pork_logo' "$MAIN"
+          grep -q 'trivandrum_pork_logo' "$INVOICE"
+          grep -q 'item.productName' "$KITCHEN"
+          grep -q 'item.quantity' "$KITCHEN"
+          ! grep -q 'KITCHEN ORDER' "$KITCHEN"
+          grep -q 'pos_file_paths' "$MANIFEST"
+          grep -q 'cache-path' TrivandrumPorkPOS-Android/app/src/main/res/xml/pos_file_paths.xml
+          grep -q 'versionName = "1.7.0"' TrivandrumPorkPOS-Android/app/build.gradle.kts
+
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
         run: gradle --no-daemon --stacktrace clean assembleDebug
@@ -196,10 +219,10 @@ jobs:
           file "$APK"
           sha256sum "$APK"
 
-      - name: Upload v1.5.0 APK
+      - name: Upload v1.7.0 APK
         uses: actions/upload-artifact@v4
         with:
-          name: TrivandrumPorkPOS-v1.6.0-loyalty-debug-apk
+          name: TrivandrumPorkPOS-v1.7.0-kitchen-logo-debug-apk
           path: TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
