@@ -414,13 +414,13 @@ object SalesExcelExporter {
         rows += listOf(title)
         rows += listOf("From", dateFormat.format(Date(fromMillis)))
         rows += listOf("To", dateFormat.format(Date(toMillis)))
-        rows += emptyList()
+        rows.add(emptyList())
         rows += listOf("Summary", "Value")
         rows += listOf("Total Bills", bills.size)
         rows += listOf("Original Sales", originalSales)
         rows += listOf("Total Discounts", totalDiscount)
         rows += listOf("Net Sales", netSales)
-        rows += emptyList()
+        rows.add(emptyList())
         rows += listOf("Bill No", "Date", "Customer", "Mobile", "Category", "Item", "Qty", "Original Rate", "Discount %", "Discounted Rate", "Original Amount", "Discount Amount", "Net Amount")
         bills.forEach { bill ->
             bill.items.forEach { line ->
