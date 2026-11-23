@@ -1,6 +1,6 @@
 version=1.2.0
-run_id=44899100371
-run_number=12
-commit=1a9836f41ba3b97ebcd29001680111cea033e17c
-artifact=TrivandrumPorkPOS-v1.2.0-debug-apk
-sha256=18aaaecd8c3ff660b38b7895991e01e74cd645f1e1871b6cab831c63d776b28e
+run_id=45130052147
+run_number=14
+commit=ca276b9fab2eef3e8a2f397a04004d2d90d52165
+artifact=TrivandrumPorkPOS-v1.3.0-debug-apk
+sha256=1eed5d2202e1437867f765484d607c7d8b1d68c3304849d80f40b68887529d57
