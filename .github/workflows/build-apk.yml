@@ -1,4 +1,4 @@
-name: Build Trivandrum Pork POS v1.7.0 APK
+name: Build Trivandrum Pork POS v1.7.1 APK
 
 on:
   workflow_dispatch:
@@ -206,6 +206,21 @@ jobs:
           grep -q 'cache-path' TrivandrumPorkPOS-Android/app/src/main/res/xml/pos_file_paths.xml
           grep -q 'versionName = "1.7.0"' TrivandrumPorkPOS-Android/app/build.gradle.kts
 
+
+      - name: Apply v1.7.1 unsaved-number WhatsApp bill flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/apply_v1_8.py
+          MAIN="TrivandrumPorkPOS-Android/app/src/main/java/com/trivandrumpork/pos/MainActivity.kt"
+          MANIFEST="TrivandrumPorkPOS-Android/app/src/main/AndroidManifest.xml"
+          grep -q 'Send Bill Details' "$MAIN"
+          grep -q 'https://wa.me/' "$MAIN"
+          grep -q 'buildWhatsAppBillMessage' "$MAIN"
+          grep -q 'android:name="com.whatsapp"' "$MANIFEST"
+          grep -q 'android:name="com.whatsapp.w4b"' "$MANIFEST"
+          grep -q 'versionName = "1.7.1"' TrivandrumPorkPOS-Android/app/build.gradle.kts
+
       - name: Build debug APK
         working-directory: TrivandrumPorkPOS-Android
         run: gradle --no-daemon --stacktrace clean assembleDebug
@@ -219,10 +234,10 @@ jobs:
           file "$APK"
           sha256sum "$APK"
 
-      - name: Upload v1.7.0 APK
+      - name: Upload v1.7.1 APK
         uses: actions/upload-artifact@v4
         with:
-          name: TrivandrumPorkPOS-v1.7.0-kitchen-logo-debug-apk
+          name: TrivandrumPorkPOS-v1.7.1-whatsapp-unsaved-number-debug-apk
           path: TrivandrumPorkPOS-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
